@@ -1,0 +1,3 @@
+([('main',
+   '/Users/creamel/Documents/Github/Bank-Management-System/dist/main',
+   'EXECUTABLE')],)
