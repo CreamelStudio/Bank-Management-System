@@ -551,10 +551,10 @@ def ChecksumTest(UUID = None):
                 if row["Hash"] != calculated_hash:
                     if UUID == loginUUID:
                         print("파일 변조가 감지되었습니다. 데이터 삭제 및 로그아웃이 진행됩니다.")
-                    loginUUID = None
-                    loginName = None
-                    loginID = None
-                    loginPW = None
+                        loginUUID = None
+                        loginName = None
+                        loginID = None
+                        loginPW = None
                     os.remove(path)
                     return False
                 return True
