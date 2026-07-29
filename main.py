@@ -4,6 +4,7 @@ import os
 from enum import Enum
 from hashlib import md5
 from pathlib import Path
+import shutil
 
 import glob
 
@@ -535,7 +536,6 @@ def ChecksumTest(UUID = None):
 
     if not os.path.exists(ChecksumPath):
         print("체크섬 기록이 존재하지 않습니다.")
-        os.remove(Path("data"))
         return False
 
     file_hash = md5()
@@ -559,6 +559,7 @@ def ChecksumTest(UUID = None):
                     os.remove(path)
                     return False
                 return True
+
 
     print("해당 파일의 Checksum 기록을 찾지 못했습니다, 해당 데이터를 삭제합니다.")
     os.remove(path)
