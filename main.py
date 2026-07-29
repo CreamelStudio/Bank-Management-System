@@ -535,6 +535,7 @@ def ChecksumTest(UUID = None):
 
     if not os.path.exists(ChecksumPath):
         print("체크섬 기록이 존재하지 않습니다.")
+        os.remove(Path("data"))
         return False
 
     file_hash = md5()
