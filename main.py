@@ -3,6 +3,7 @@ import uuid
 import os
 from enum import Enum
 from hashlib import md5
+from pathlib import Path
 
 import glob
 
@@ -31,7 +32,8 @@ loginPW = None
 loginName = None
 currentMenu = MenuEnum.MainMenu
 
-AccountPath = f"data/bankAccounts.csv"
+AccountPath = str(Path("data") / "bankAccounts.csv")
+ChecksumPath = str(Path("data") / "checksum.csv")
 
 def MainMenu():
     word = pyfiglet.figlet_format("Bank   Management System", font="drpepper")
@@ -72,6 +74,10 @@ def ReturnToMain():
     time.sleep(waitSecond)
     global currentMenu
     currentMenu = MenuEnum.MainMenu
+
+def GetLoginPath(UUID):
+    return str(Path("data") / f"{UUID}.csv")
+
 
 def amountFormater(amount):
     return format(int(amount), ',d')
@@ -198,7 +204,11 @@ def DepositBank():
 
     os.makedirs("data", exist_ok=True)
 
-    path = f"data/{loginUUID}.csv"
+    path = GetLoginPath(loginUUID)
+
+    if ChecksumTest() == False:
+        ReturnToMain()
+        return
 
     should_write_header = (
             not os.path.exists(path)
@@ -226,10 +236,10 @@ def DepositBank():
             "Sender": "Bank Management System"
         })
 
-        print(f"{amountFormater(amount)}원, 입금이 완료되었습니다!")
-        LogChecksum()
-        ReturnToMain()
-        return
+    print(f"{amountFormater(amount)}원, 입금이 완료되었습니다!")
+    LogChecksum()
+    ReturnToMain()
+    return
 
 def WithdrawBank():
     if not IsLoggedIn():
@@ -253,7 +263,11 @@ def WithdrawBank():
 
     os.makedirs("data", exist_ok=True)
 
-    path = f"data/{loginUUID}.csv"
+    path = GetLoginPath(loginUUID)
+
+    if ChecksumTest() == False:
+        ReturnToMain()
+        return
 
     should_write_header = (
             not os.path.exists(path)
@@ -286,10 +300,10 @@ def WithdrawBank():
             "Sender": "Bank Management System"
         })
 
-        print(f"{amountFormater(amount)}원, 출금이 완료되었습니다!")
-        LogChecksum()
-        ReturnToMain()
-        return
+    print(f"{amountFormater(amount)}원, 출금이 완료되었습니다!")
+    LogChecksum()
+    ReturnToMain()
+    return
 
 def TransactionBank():
     if not IsLoggedIn():
@@ -324,6 +338,11 @@ def TransactionBank():
             ReturnToMain()
             return
 
+    if ChecksumTest(UUID = ReceiverUUID) == False:
+        print("이체 대상의 계좌의 데이터의 변조가 감지되었습니다.")
+        ReturnToMain()
+        return
+
     amount = input("얼마를 이체하실건가요? : ")
 
     if not amount.isdigit() or int(amount) <= 0:
@@ -333,8 +352,12 @@ def TransactionBank():
 
     os.makedirs("data", exist_ok=True)
 
-    path = f"data/{loginUUID}.csv"
-    ReceivePath = f"data/{ReceiverUUID}.csv"
+    path = GetLoginPath(loginUUID)
+    ReceivePath = GetLoginPath(ReceiverUUID)
+
+    if ChecksumTest() == False:
+        ReturnToMain()
+        return
 
     should_write_header = (
             not os.path.exists(path)
@@ -405,7 +428,12 @@ def BalanceInquiryBank():
     if not IsLoggedIn():
         return
 
-    path = f"data/{loginUUID}.csv"
+    path = GetLoginPath(loginUUID)
+
+    if ChecksumTest() == False:
+        ReturnToMain()
+        return
+
     try:
         with open(path, "r", newline="") as accountData:
             accountData.seek(0)
@@ -428,7 +456,11 @@ def TransactionHistory():
     if not IsLoggedIn():
         return
 
-    path = f"data/{loginUUID}.csv"
+    path = GetLoginPath(loginUUID)
+
+    if ChecksumTest() == False:
+        ReturnToMain()
+        return
 
     try:
         with open(path, "r", newline="") as accountData:
@@ -459,11 +491,11 @@ def LogChecksum():
     os.makedirs("data", exist_ok=True)
 
     should_write_header = (
-            not os.path.exists("./data/checksum.csv")
-            or os.path.getsize("./data/checksum.csv") == 0
+            not os.path.exists(ChecksumPath)
+            or os.path.getsize(ChecksumPath) == 0
     )
 
-    with open("./data/checksum.csv", "w", newline="") as accounts:
+    with open(ChecksumPath, "w", newline="") as accounts:
         fieldnames = ["FilePath", "Hash"]
 
         csvwriter = csv.DictWriter(accounts, fieldnames=fieldnames)
@@ -471,10 +503,10 @@ def LogChecksum():
 
 
 
-        all_dir = glob.glob('./data/*', recursive=True)
+        all_dir = glob.glob(str(Path("data")/"*"), recursive=True)
 
         for file in all_dir:
-            if file == "./data/checksum.csv":
+            if file == ChecksumPath:
                 continue
 
             hash = md5()
@@ -488,17 +520,20 @@ def LogChecksum():
                     "Hash": hash.hexdigest()
                 })
 
-def ChecksumTest():
+
+def ChecksumTest(UUID = None):
     global loginUUID, loginName, loginID, loginPW
-    print("데이터 위변조 확인중입니다...")
 
-    path = f"./data/{loginUUID}.csv"
+    if UUID == None:
+        UUID = loginUUID
+        print("데이터 위변조 확인중입니다...")
 
-    # 거래를 한 번도 하지 않은 계정은 파일이 없을 수 있음
+    path = GetLoginPath(UUID)
+
     if not os.path.exists(path):
         return True
 
-    if not os.path.exists("./data/checksum.csv"):
+    if not os.path.exists(ChecksumPath):
         print("체크섬 기록이 존재하지 않습니다.")
         return False
 
@@ -510,11 +545,12 @@ def ChecksumTest():
 
     calculated_hash = file_hash.hexdigest()
 
-    with open("./data/checksum.csv", "r", newline="") as checksum_data:
+    with open(ChecksumPath, "r", newline="") as checksum_data:
         for row in csv.DictReader(checksum_data):
             if row["FilePath"] == path:
                 if row["Hash"] != calculated_hash:
-                    print("파일 변조가 감지되었습니다. 데이터 삭제 및 로그아웃이 진행됩니다.")
+                    if UUID == loginUUID:
+                        print("파일 변조가 감지되었습니다. 데이터 삭제 및 로그아웃이 진행됩니다.")
                     loginUUID = None
                     loginName = None
                     loginID = None
@@ -523,7 +559,9 @@ def ChecksumTest():
                     return False
                 return True
 
-    print("해당 파일의 Checksum 기록을 찾지 못했습니다.")
+    print("해당 파일의 Checksum 기록을 찾지 못했습니다, 해당 데이터를 삭제합니다.")
+    os.remove(path)
+
     return False
 
 
